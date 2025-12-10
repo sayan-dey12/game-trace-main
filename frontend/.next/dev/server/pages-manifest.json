@@ -2,8 +2,5 @@
   "/": "pages/index.js",
   "/_app": "pages/_app.js",
   "/_document": "pages/_document.js",
-  "/_error": "pages/_error.js",
-  "/admin": "pages/admin.js",
-  "/fun": "pages/fun.js",
-  "/fun/game": "pages/fun/game.js"
+  "/admin": "pages/admin.js"
 }
