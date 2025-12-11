@@ -2,14 +2,8 @@ self.__BUILD_MANIFEST = {
   "/": [
     "static/chunks/pages/index.js"
   ],
-  "/_error": [
-    "static/chunks/pages/_error.js"
-  ],
   "/admin": [
     "static/chunks/pages/admin.js"
-  ],
-  "/fun": [
-    "static/chunks/pages/fun.js"
   ],
   "/fun/camera": [
     "static/chunks/pages/fun/camera.js"

