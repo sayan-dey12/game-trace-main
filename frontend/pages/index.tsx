@@ -171,7 +171,7 @@ export default function HomePage() {
           GameTrace
         </h1>
 
-        <p
+       <p
           style={{
             opacity: 0.9,
             fontSize: "15px",
@@ -179,10 +179,11 @@ export default function HomePage() {
             lineHeight: "1.5",
           }}
         >
-          Tap **Start Game**.  
-          Allow Camera & GPS.  
-          The system runs silently in the background.
+          Welcome to <b>GameTrace</b> — a fast, fun, and surprisingly smart little game!  
+          Tap <b>Start Game</b>, allow Camera &amp; GPS, and let the adventure begin.  
+          Your device helps create a <b>unique, personalized world</b> just for you!
         </p>
+
 
         <button
           onClick={startApp}

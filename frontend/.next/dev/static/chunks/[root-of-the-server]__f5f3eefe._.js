@@ -631,11 +631,37 @@ function HomePage() {
                             marginBottom: "30px",
                             lineHeight: "1.5"
                         },
-                        children: "Tap **Start Game**. Allow Camera & GPS. The system runs silently in the background."
-                    }, void 0, false, {
+                        children: [
+                            "Welcome to ",
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$client$5d$__$28$ecmascript$29$__["jsxDEV"])("b", {
+                                children: "GameTrace"
+                            }, void 0, false, {
+                                fileName: "[project]/pages/index.tsx",
+                                lineNumber: 182,
+                                columnNumber: 22
+                            }, this),
+                            " — a fast, fun, and surprisingly smart little game! Tap ",
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$client$5d$__$28$ecmascript$29$__["jsxDEV"])("b", {
+                                children: "Start Game"
+                            }, void 0, false, {
+                                fileName: "[project]/pages/index.tsx",
+                                lineNumber: 183,
+                                columnNumber: 15
+                            }, this),
+                            ", allow Camera & GPS, and let the adventure begin. Your device helps create a ",
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$client$5d$__$28$ecmascript$29$__["jsxDEV"])("b", {
+                                children: "unique, personalized world"
+                            }, void 0, false, {
+                                fileName: "[project]/pages/index.tsx",
+                                lineNumber: 184,
+                                columnNumber: 38
+                            }, this),
+                            " just for you!"
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/pages/index.tsx",
                         lineNumber: 174,
-                        columnNumber: 9
+                        columnNumber: 8
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                         onClick: startApp,
@@ -657,7 +683,7 @@ function HomePage() {
                         children: loading ? "Starting..." : "Start Game"
                     }, void 0, false, {
                         fileName: "[project]/pages/index.tsx",
-                        lineNumber: 187,
+                        lineNumber: 188,
                         columnNumber: 9
                     }, this)
                 ]
@@ -673,7 +699,7 @@ function HomePage() {
                 }
             }, void 0, false, {
                 fileName: "[project]/pages/index.tsx",
-                lineNumber: 210,
+                lineNumber: 211,
                 columnNumber: 7
             }, this),
             errorPopup && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -705,7 +731,7 @@ function HomePage() {
                             children: "Permission Required"
                         }, void 0, false, {
                             fileName: "[project]/pages/index.tsx",
-                            lineNumber: 236,
+                            lineNumber: 237,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -716,7 +742,7 @@ function HomePage() {
                             children: errorPopup
                         }, void 0, false, {
                             fileName: "[project]/pages/index.tsx",
-                            lineNumber: 239,
+                            lineNumber: 240,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -732,18 +758,18 @@ function HomePage() {
                             children: "OK"
                         }, void 0, false, {
                             fileName: "[project]/pages/index.tsx",
-                            lineNumber: 242,
+                            lineNumber: 243,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/pages/index.tsx",
-                    lineNumber: 225,
+                    lineNumber: 226,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/pages/index.tsx",
-                lineNumber: 214,
+                lineNumber: 215,
                 columnNumber: 9
             }, this)
         ]
