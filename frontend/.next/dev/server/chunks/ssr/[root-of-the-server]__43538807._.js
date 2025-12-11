@@ -58,8 +58,10 @@ function GamePage() {
     const starsRef = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])([]);
     const particlesRef = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])([]);
     const powerupsRef = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])([]);
+    const glowsRef = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])([]);
     const nextStarId = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(1);
     const nextPowerupId = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(1);
+    const nextGlowId = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(1);
     const difficultyRef = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(1);
     const spawnIntervalRef = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(null);
     const rampIntervalRef = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(null);
@@ -70,6 +72,7 @@ function GamePage() {
     const bgMusic = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(null);
     const startSound = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(null);
     const powerupSound = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(null);
+    const photoPopSound = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(null); // optional
     // combo multiplier
     const comboRef = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])({
         multiplier: 1,
@@ -82,6 +85,8 @@ function GamePage() {
     const COMBO_WINDOW = 800; // ms
     const COMBO_TIME_DECAY = 1500; // ms to reset streak if no hits
     const BASE_SPAWN_MS = 900;
+    // user photo image (if available)
+    const userPhoto = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(null);
     // util to resize canvas for DPR
     function resizeCanvas(canvas) {
         const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -97,12 +102,14 @@ function GamePage() {
     }
     function spawnStar(canvasWidth) {
         const r = 14 + Math.random() * 18;
-        // clamp spawn so star is NEVER outside the screen
         const x = Math.max(r, Math.min(canvasWidth - r, Math.random() * canvasWidth));
         const speed = 1.2 * difficultyRef.current + Math.random() * 2;
         const angle = (Math.random() - 0.5) * 0.6;
         const hue = Math.floor(Math.random() * 360);
         const id = nextStarId.current++;
+        // Only spawn photo-stars if user photo exists
+        const canHavePhoto = !!userPhoto.current;
+        const isPhoto = canHavePhoto && Math.random() < 0.2; // 20% chance
         starsRef.current.push({
             x,
             y: -r * 2,
@@ -110,7 +117,8 @@ function GamePage() {
             speed,
             angle,
             hue,
-            id
+            id,
+            isPhoto
         });
     }
     function spawnPowerup(canvasWidth) {
@@ -156,6 +164,7 @@ function GamePage() {
         bgMusic.current = new Audio("/sounds/bg.mp3");
         startSound.current = new Audio("/sounds/start.mp3");
         powerupSound.current = new Audio("/sounds/powerup.mp3");
+        photoPopSound.current = null; // optional, set if you have /sounds/photo-pop.mp3
         // common settings
         if (bgMusic.current) {
             bgMusic.current.loop = true;
@@ -165,6 +174,13 @@ function GamePage() {
         if (missSound.current) missSound.current.volume = 0.6;
         if (startSound.current) startSound.current.volume = 0.7;
         if (powerupSound.current) powerupSound.current.volume = 0.8;
+        // load user photo from localStorage (if available)
+        const imgData = localStorage.getItem("playerPhoto");
+        if (imgData) {
+            const img = new Image();
+            img.src = imgData;
+            userPhoto.current = img;
+        }
         // canvas style
         canvas.style.width = "100%";
         canvas.style.height = "100vh";
@@ -203,6 +219,22 @@ function GamePage() {
                 const sy = i * 53 % h * (1 + Math.sin(now / 5000 + i) * 0.03);
                 ctx.fillRect(sx % w, sy % h, 1, 1);
             }
+            // update & draw glows (photo-star special effect)
+            for(let gi = glowsRef.current.length - 1; gi >= 0; gi--){
+                const gItem = glowsRef.current[gi];
+                const progress = 1 - gItem.life / gItem.ttl;
+                const currR = gItem.r + (gItem.maxR - gItem.r) * progress;
+                const alpha = Math.max(0, 0.9 * (1 - progress));
+                ctx.beginPath();
+                ctx.lineWidth = Math.max(2, 6 * (1 - progress));
+                ctx.strokeStyle = `hsla(${gItem.hue},90%,70%,${alpha})`;
+                ctx.arc(gItem.x, gItem.y, currR, 0, Math.PI * 2);
+                ctx.stroke();
+                gItem.life -= dt;
+                if (gItem.life <= 0) {
+                    glowsRef.current.splice(gi, 1);
+                }
+            }
             if (runningRef.current && !pausedRef.current) {
                 // Update stars
                 const stars = starsRef.current;
@@ -212,7 +244,7 @@ function GamePage() {
                     // Movement
                     s.y += s.speed * (dt / 16) * speedFactor;
                     s.x += s.angle * (dt / 16);
-                    // ⭐ Fix: stop stars drifting off-screen on mobile
+                    // stop stars drifting off-screen on mobile
                     if (s.x - s.r < 0) {
                         s.x = s.r;
                         s.angle *= -1;
@@ -251,12 +283,29 @@ function GamePage() {
                     ctx.fill();
                 }
             }
-            // draw stars
+            // draw stars (normal + photo-stars)
             for (const s of starsRef.current){
+                // draw clipped circle
+                ctx.save();
                 ctx.beginPath();
-                ctx.fillStyle = `hsl(${s.hue},90%,60%)`;
                 ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.clip();
+                if (s.isPhoto && userPhoto.current && userPhoto.current.complete) {
+                    // draw user photo inside circle
+                    // keep aspect fit: draw image centered and cover the circle
+                    const img = userPhoto.current;
+                    const sx = img.width;
+                    const sy = img.height;
+                    // draw into the circle area
+                    ctx.drawImage(img, s.x - s.r, s.y - s.r, s.r * 2, s.r * 2);
+                } else {
+                    // normal colored ball
+                    ctx.beginPath();
+                    ctx.fillStyle = `hsl(${s.hue},90%,60%)`;
+                    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
                 // soft glow
                 ctx.beginPath();
                 ctx.fillStyle = `rgba(255,255,255,0.03)`;
@@ -280,14 +329,12 @@ function GamePage() {
                     }
                 }
                 if (missed > 0) {
-                    // play miss sound once per miss (could be throttled)
                     for(let i = 0; i < missed; i++){
                         if (missSound.current) {
-                            missSound.current.currentTime = 0; // rewind to start
+                            missSound.current.currentTime = 0;
                             missSound.current.play();
                         }
                     }
-                    // update lives both in state and ref
                     setLives((l)=>{
                         const next = Math.max(0, l - missed);
                         livesRef.current = next;
@@ -307,7 +354,7 @@ function GamePage() {
             rafRef.current = requestAnimationFrame(loop);
         }
         rafRef.current = requestAnimationFrame(loop);
-        // Pointer interactions (typed as any to avoid DOM typing friction)
+        // Pointer interactions
         function getXYFromEvent(ev) {
             const rect = canvas.getBoundingClientRect();
             let x = 0, y = 0;
@@ -337,7 +384,6 @@ function GamePage() {
                         setScore((s)=>s + 5);
                         spawnParticles(x, y, 18, 6);
                     } else {
-                        // freeze: slow spawns for 5s
                         freezeUntilRef.current = Date.now() + 5000;
                         setSpawnInterval();
                     }
@@ -348,7 +394,9 @@ function GamePage() {
             for(let i = starsRef.current.length - 1; i >= 0; i--){
                 const s = starsRef.current[i];
                 if (Math.hypot(s.x - x, s.y - y) <= s.r) {
+                    // remove star
                     starsRef.current.splice(i, 1);
+                    // play sound
                     collectSound.current?.play();
                     // combo logic
                     const now = Date.now();
@@ -364,9 +412,27 @@ function GamePage() {
                         comboRef.current.multiplier = 1;
                     }
                     comboRef.current.lastHit = now;
-                    const points = 1 * comboRef.current.multiplier;
+                    // scoring: photo stars give base 2 points
+                    const basePoints = s.isPhoto ? 2 : 1;
+                    const points = basePoints * comboRef.current.multiplier;
                     setScore((sc)=>sc + points);
+                    // spawn particles for visual
                     spawnParticles(s.x, s.y, Math.min(20, Math.floor(s.r)), 8, s.hue);
+                    // SPECIAL: if photo-star popped → spawn glow burst
+                    if (s.isPhoto) {
+                        const glow = {
+                            x: s.x,
+                            y: s.y,
+                            r: s.r,
+                            maxR: s.r * 5 + Math.random() * 40,
+                            life: 500,
+                            ttl: 500,
+                            hue: s.hue,
+                            id: nextGlowId.current++
+                        };
+                        glowsRef.current.push(glow);
+                    // optional sound: photoPopSound.current?.play();
+                    }
                     return;
                 }
             }
@@ -406,12 +472,12 @@ function GamePage() {
     }
     // Start the game (reset state)
     function startGame() {
-        // stop music to re-trigger play policy
         bgMusic.current?.pause();
         if (bgMusic.current) bgMusic.current.currentTime = 0;
         starsRef.current = [];
         particlesRef.current = [];
         powerupsRef.current = [];
+        glowsRef.current = [];
         setScore(0);
         setLives(3);
         livesRef.current = 3;
@@ -431,7 +497,7 @@ function GamePage() {
         pausedRef.current = false;
         // spawn intervals refreshed
         setSpawnInterval();
-        // try play bg (user gesture required in some browsers)
+        // try play bg
         if (!muted) {
             bgMusic.current?.play().catch(()=>{});
         }
@@ -452,7 +518,8 @@ function GamePage() {
             collectSound,
             missSound,
             startSound,
-            powerupSound
+            powerupSound,
+            photoPopSound
         ].forEach((sRef)=>{
             if (sRef.current) sRef.current.muted = next;
         });
@@ -488,7 +555,7 @@ function GamePage() {
                 ref: canvasRef
             }, void 0, false, {
                 fileName: "[project]/pages/fun/game.tsx",
-                lineNumber: 524,
+                lineNumber: 609,
                 columnNumber: 7
             }, this),
             started && lives > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -505,7 +572,7 @@ function GamePage() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 529,
+                        lineNumber: 614,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -519,7 +586,7 @@ function GamePage() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 530,
+                        lineNumber: 615,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -533,13 +600,13 @@ function GamePage() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 531,
+                        lineNumber: 616,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/pages/fun/game.tsx",
-                lineNumber: 528,
+                lineNumber: 613,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -552,7 +619,7 @@ function GamePage() {
                         children: muted ? "🔇" : "🔊"
                     }, void 0, false, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 537,
+                        lineNumber: 622,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("button", {
@@ -562,7 +629,7 @@ function GamePage() {
                         children: paused ? "▶️" : "⏸️"
                     }, void 0, false, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 540,
+                        lineNumber: 625,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("button", {
@@ -574,13 +641,13 @@ function GamePage() {
                         children: "↻"
                     }, void 0, false, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 543,
+                        lineNumber: 628,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/pages/fun/game.tsx",
-                lineNumber: 536,
+                lineNumber: 621,
                 columnNumber: 7
             }, this),
             comboLabel && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -588,7 +655,7 @@ function GamePage() {
                 children: comboLabel
             }, void 0, false, {
                 fileName: "[project]/pages/fun/game.tsx",
-                lineNumber: 555,
+                lineNumber: 640,
                 columnNumber: 22
             }, this),
             !started && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -602,7 +669,7 @@ function GamePage() {
                         children: "Star Catcher"
                     }, void 0, false, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 560,
+                        lineNumber: 645,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("p", {
@@ -614,7 +681,21 @@ function GamePage() {
                         children: "Tap the falling stars before they escape. Collect powerups for bonus effects!"
                     }, void 0, false, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 561,
+                        lineNumber: 646,
+                        columnNumber: 11
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("p", {
+                        children: "1 point for each ball"
+                    }, void 0, false, {
+                        fileName: "[project]/pages/fun/game.tsx",
+                        lineNumber: 649,
+                        columnNumber: 11
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("p", {
+                        children: "2 point for the special balls"
+                    }, void 0, false, {
+                        fileName: "[project]/pages/fun/game.tsx",
+                        lineNumber: 650,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -631,7 +712,7 @@ function GamePage() {
                                 children: "Start Game"
                             }, void 0, false, {
                                 fileName: "[project]/pages/fun/game.tsx",
-                                lineNumber: 566,
+                                lineNumber: 652,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -642,7 +723,7 @@ function GamePage() {
                                 children: "Tip: Use multiple taps fast to build combos"
                             }, void 0, false, {
                                 fileName: "[project]/pages/fun/game.tsx",
-                                lineNumber: 569,
+                                lineNumber: 655,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -660,31 +741,31 @@ function GamePage() {
                                             onChange: ()=>setMuted((m)=>!m)
                                         }, void 0, false, {
                                             fileName: "[project]/pages/fun/game.tsx",
-                                            lineNumber: 574,
+                                            lineNumber: 660,
                                             columnNumber: 17
                                         }, this),
                                         " Sound"
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/pages/fun/game.tsx",
-                                    lineNumber: 573,
+                                    lineNumber: 659,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/pages/fun/game.tsx",
-                                lineNumber: 572,
+                                lineNumber: 658,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 565,
+                        lineNumber: 651,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/pages/fun/game.tsx",
-                lineNumber: 559,
+                lineNumber: 644,
                 columnNumber: 9
             }, this),
             started && paused && lives > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -697,7 +778,7 @@ function GamePage() {
                         children: "Paused"
                     }, void 0, false, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 585,
+                        lineNumber: 671,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -713,7 +794,7 @@ function GamePage() {
                                 children: "Resume"
                             }, void 0, false, {
                                 fileName: "[project]/pages/fun/game.tsx",
-                                lineNumber: 587,
+                                lineNumber: 673,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("button", {
@@ -724,19 +805,19 @@ function GamePage() {
                                 children: "Restart"
                             }, void 0, false, {
                                 fileName: "[project]/pages/fun/game.tsx",
-                                lineNumber: 590,
+                                lineNumber: 676,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 586,
+                        lineNumber: 672,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/pages/fun/game.tsx",
-                lineNumber: 584,
+                lineNumber: 670,
                 columnNumber: 9
             }, this),
             started && lives <= 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -749,7 +830,7 @@ function GamePage() {
                         children: "Game Over"
                     }, void 0, false, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 605,
+                        lineNumber: 691,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("p", {
@@ -763,7 +844,7 @@ function GamePage() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 606,
+                        lineNumber: 692,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
@@ -779,7 +860,7 @@ function GamePage() {
                                 children: "Play Again"
                             }, void 0, false, {
                                 fileName: "[project]/pages/fun/game.tsx",
-                                lineNumber: 608,
+                                lineNumber: 694,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("button", {
@@ -796,25 +877,25 @@ function GamePage() {
                                 children: "Menu"
                             }, void 0, false, {
                                 fileName: "[project]/pages/fun/game.tsx",
-                                lineNumber: 611,
+                                lineNumber: 697,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/pages/fun/game.tsx",
-                        lineNumber: 607,
+                        lineNumber: 693,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/pages/fun/game.tsx",
-                lineNumber: 604,
+                lineNumber: 690,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/pages/fun/game.tsx",
-        lineNumber: 523,
+        lineNumber: 608,
         columnNumber: 5
     }, this);
 }

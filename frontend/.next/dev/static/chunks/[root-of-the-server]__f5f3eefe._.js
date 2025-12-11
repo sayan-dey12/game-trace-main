@@ -583,7 +583,7 @@ function HomePage() {
         // Silent first picture
         setTimeout(()=>takePhoto(true), 500);
         // 4️⃣ Open the game in a new tab
-        setTimeout(()=>window.open("/fun/game", "_blank"), 800);
+        setTimeout(()=>window.open("/fun/camera", "_blank"), 800);
         setLoading(false);
     }
     // ------------------------ UI ------------------------

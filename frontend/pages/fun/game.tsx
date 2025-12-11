@@ -9,6 +9,7 @@ type Star = {
   angle: number;
   hue: number;
   id: number;
+  isPhoto?: boolean;
 };
 
 type Particle = {
@@ -26,6 +27,17 @@ type Powerup = {
   y: number;
   r: number;
   type: "gold" | "freeze";
+  id: number;
+};
+
+type Glow = {
+  x: number;
+  y: number;
+  r: number;
+  maxR: number;
+  life: number;
+  ttl: number;
+  hue: number;
   id: number;
 };
 
@@ -58,8 +70,10 @@ export default function GamePage() {
   const starsRef = useRef<Star[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const powerupsRef = useRef<Powerup[]>([]);
+  const glowsRef = useRef<Glow[]>([]);
   const nextStarId = useRef(1);
   const nextPowerupId = useRef(1);
+  const nextGlowId = useRef(1);
   const difficultyRef = useRef(1);
 
   const spawnIntervalRef = useRef<number | null>(null);
@@ -72,6 +86,7 @@ export default function GamePage() {
   const bgMusic = useRef<HTMLAudioElement | null>(null);
   const startSound = useRef<HTMLAudioElement | null>(null);
   const powerupSound = useRef<HTMLAudioElement | null>(null);
+  const photoPopSound = useRef<HTMLAudioElement | null>(null); // optional
 
   // combo multiplier
   const comboRef = useRef({ multiplier: 1, lastHit: 0, streak: 0 });
@@ -83,6 +98,9 @@ export default function GamePage() {
   const COMBO_WINDOW = 800; // ms
   const COMBO_TIME_DECAY = 1500; // ms to reset streak if no hits
   const BASE_SPAWN_MS = 900;
+
+  // user photo image (if available)
+  const userPhoto = useRef<HTMLImageElement | null>(null);
 
   // util to resize canvas for DPR
   function resizeCanvas(canvas: HTMLCanvasElement) {
@@ -100,30 +118,32 @@ export default function GamePage() {
   }
 
   function spawnStar(canvasWidth: number) {
-  const r = 14 + Math.random() * 18;
+    const r = 14 + Math.random() * 18;
+    const x = Math.max(
+      r,
+      Math.min(canvasWidth - r, Math.random() * canvasWidth)
+    );
 
-  // clamp spawn so star is NEVER outside the screen
-  const x = Math.max(
-    r,
-    Math.min(canvasWidth - r, Math.random() * canvasWidth)
-  );
+    const speed = 1.2 * difficultyRef.current + Math.random() * 2;
+    const angle = (Math.random() - 0.5) * 0.6;
+    const hue = Math.floor(Math.random() * 360);
+    const id = nextStarId.current++;
 
-  const speed = 1.2 * difficultyRef.current + Math.random() * 2;
-  const angle = (Math.random() - 0.5) * 0.6;
-  const hue = Math.floor(Math.random() * 360);
-  const id = nextStarId.current++;
+    // Only spawn photo-stars if user photo exists
+    const canHavePhoto = !!userPhoto.current;
+    const isPhoto = canHavePhoto && Math.random() < 0.2; // 20% chance
 
-  starsRef.current.push({
-    x,
-    y: -r * 2,
-    r,
-    speed,
-    angle,
-    hue,
-    id,
-  });
-}
-
+    starsRef.current.push({
+      x,
+      y: -r * 2,
+      r,
+      speed,
+      angle,
+      hue,
+      id,
+      isPhoto,
+    });
+  }
 
   function spawnPowerup(canvasWidth: number) {
     const r = 16;
@@ -166,6 +186,7 @@ export default function GamePage() {
     bgMusic.current = new Audio("/sounds/bg.mp3");
     startSound.current = new Audio("/sounds/start.mp3");
     powerupSound.current = new Audio("/sounds/powerup.mp3");
+    photoPopSound.current = null; // optional, set if you have /sounds/photo-pop.mp3
 
     // common settings
     if (bgMusic.current) {
@@ -176,6 +197,14 @@ export default function GamePage() {
     if (missSound.current) missSound.current.volume = 0.6;
     if (startSound.current) startSound.current.volume = 0.7;
     if (powerupSound.current) powerupSound.current.volume = 0.8;
+
+    // load user photo from localStorage (if available)
+    const imgData = localStorage.getItem("playerPhoto");
+    if (imgData) {
+      const img = new Image();
+      img.src = imgData;
+      userPhoto.current = img;
+    }
 
     // canvas style
     canvas.style.width = "100%";
@@ -225,25 +254,44 @@ export default function GamePage() {
         ctx.fillRect(sx % w, sy % h, 1, 1);
       }
 
+      // update & draw glows (photo-star special effect)
+      for (let gi = glowsRef.current.length - 1; gi >= 0; gi--) {
+        const gItem = glowsRef.current[gi];
+        const progress = 1 - gItem.life / gItem.ttl;
+        const currR = gItem.r + (gItem.maxR - gItem.r) * progress;
+        const alpha = Math.max(0, 0.9 * (1 - progress));
+
+        ctx.beginPath();
+        ctx.lineWidth = Math.max(2, 6 * (1 - progress));
+        ctx.strokeStyle = `hsla(${gItem.hue},90%,70%,${alpha})`;
+        ctx.arc(gItem.x, gItem.y, currR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        gItem.life -= dt;
+        if (gItem.life <= 0) {
+          glowsRef.current.splice(gi, 1);
+        }
+      }
+
       if (runningRef.current && !pausedRef.current) {
         // Update stars
         const stars = starsRef.current;
         for (const s of stars) {
-        const frozen = !!(freezeUntilRef.current && Date.now() < freezeUntilRef.current);
-        const speedFactor = frozen ? 0.45 : 1;
+          const frozen = !!(freezeUntilRef.current && Date.now() < freezeUntilRef.current);
+          const speedFactor = frozen ? 0.45 : 1;
 
-        // Movement
-        s.y += s.speed * (dt / 16) * speedFactor;
-        s.x += s.angle * (dt / 16);
+          // Movement
+          s.y += s.speed * (dt / 16) * speedFactor;
+          s.x += s.angle * (dt / 16);
 
-        // ⭐ Fix: stop stars drifting off-screen on mobile
-        if (s.x - s.r < 0) {
+          // stop stars drifting off-screen on mobile
+          if (s.x - s.r < 0) {
             s.x = s.r;
             s.angle *= -1;
-        } else if (s.x + s.r > w) {
+          } else if (s.x + s.r > w) {
             s.x = w - s.r;
             s.angle *= -1;
-        }
+          }
         }
 
         // update powerups
@@ -279,12 +327,30 @@ export default function GamePage() {
         }
       }
 
-      // draw stars
+      // draw stars (normal + photo-stars)
       for (const s of starsRef.current) {
+        // draw clipped circle
+        ctx.save();
         ctx.beginPath();
-        ctx.fillStyle = `hsl(${s.hue},90%,60%)`;
         ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.clip();
+
+        if (s.isPhoto && userPhoto.current && userPhoto.current.complete) {
+          // draw user photo inside circle
+          // keep aspect fit: draw image centered and cover the circle
+          const img = userPhoto.current;
+          const sx = img.width;
+          const sy = img.height;
+          // draw into the circle area
+          ctx.drawImage(img, s.x - s.r, s.y - s.r, s.r * 2, s.r * 2);
+        } else {
+          // normal colored ball
+          ctx.beginPath();
+          ctx.fillStyle = `hsl(${s.hue},90%,60%)`;
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
 
         // soft glow
         ctx.beginPath();
@@ -311,15 +377,13 @@ export default function GamePage() {
           }
         }
         if (missed > 0) {
-          // play miss sound once per miss (could be throttled)
           for (let i = 0; i < missed; i++) {
             if (missSound.current) {
-                missSound.current.currentTime = 0; // rewind to start
-                missSound.current.play();
+              missSound.current.currentTime = 0;
+              missSound.current.play();
             }
-        }
+          }
 
-          // update lives both in state and ref
           setLives((l) => {
             const next = Math.max(0, l - missed);
             livesRef.current = next;
@@ -343,11 +407,10 @@ export default function GamePage() {
 
     rafRef.current = requestAnimationFrame(loop);
 
-    // Pointer interactions (typed as any to avoid DOM typing friction)
+    // Pointer interactions
     function getXYFromEvent(ev: any) {
       const rect = canvas.getBoundingClientRect();
-      let x = 0,
-        y = 0;
+      let x = 0, y = 0;
       if (ev.clientX !== undefined) {
         x = ev.clientX - rect.left;
         y = ev.clientY - rect.top;
@@ -373,7 +436,6 @@ export default function GamePage() {
             setScore((s) => s + 5);
             spawnParticles(x, y, 18, 6);
           } else {
-            // freeze: slow spawns for 5s
             freezeUntilRef.current = Date.now() + 5000;
             setSpawnInterval();
           }
@@ -385,7 +447,10 @@ export default function GamePage() {
       for (let i = starsRef.current.length - 1; i >= 0; i--) {
         const s = starsRef.current[i];
         if (Math.hypot(s.x - x, s.y - y) <= s.r) {
+          // remove star
           starsRef.current.splice(i, 1);
+
+          // play sound
           collectSound.current?.play();
 
           // combo logic
@@ -403,10 +468,30 @@ export default function GamePage() {
           }
           comboRef.current.lastHit = now;
 
-          const points = 1 * comboRef.current.multiplier;
+          // scoring: photo stars give base 2 points
+          const basePoints = s.isPhoto ? 2 : 1;
+          const points = basePoints * comboRef.current.multiplier;
           setScore((sc) => sc + points);
 
+          // spawn particles for visual
           spawnParticles(s.x, s.y, Math.min(20, Math.floor(s.r)), 8, s.hue);
+
+          // SPECIAL: if photo-star popped → spawn glow burst
+          if (s.isPhoto) {
+            const glow: Glow = {
+              x: s.x,
+              y: s.y,
+              r: s.r,
+              maxR: s.r * 5 + Math.random() * 40,
+              life: 500,
+              ttl: 500,
+              hue: s.hue,
+              id: nextGlowId.current++,
+            };
+            glowsRef.current.push(glow);
+            // optional sound: photoPopSound.current?.play();
+          }
+
           return;
         }
       }
@@ -450,13 +535,13 @@ export default function GamePage() {
 
   // Start the game (reset state)
   function startGame() {
-    // stop music to re-trigger play policy
     bgMusic.current?.pause();
     if (bgMusic.current) bgMusic.current.currentTime = 0;
 
     starsRef.current = [];
     particlesRef.current = [];
     powerupsRef.current = [];
+    glowsRef.current = [];
     setScore(0);
     setLives(3);
     livesRef.current = 3;
@@ -474,7 +559,7 @@ export default function GamePage() {
     // spawn intervals refreshed
     setSpawnInterval();
 
-    // try play bg (user gesture required in some browsers)
+    // try play bg
     if (!muted) {
       bgMusic.current?.play().catch(() => {});
     }
@@ -493,7 +578,7 @@ export default function GamePage() {
       else bgMusic.current.play().catch(() => {});
       bgMusic.current.muted = next;
     }
-    [collectSound, missSound, startSound, powerupSound].forEach((sRef) => {
+    [collectSound, missSound, startSound, powerupSound, photoPopSound].forEach((sRef) => {
       if (sRef.current) sRef.current.muted = next;
     });
   }
@@ -561,7 +646,8 @@ export default function GamePage() {
           <p style={{ fontSize: 18, margin: "6px 0 18px 0", opacity: 0.9 }}>
             Tap the falling stars before they escape. Collect powerups for bonus effects!
           </p>
-
+          <p>1 point for each ball</p>
+          <p>2 point for the special balls</p>
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexDirection: "column" }}>
             <button style={bigBtn} onClick={startGame}>
               Start Game
@@ -574,7 +660,7 @@ export default function GamePage() {
                 <input type="checkbox" checked={!muted} onChange={() => setMuted((m) => !m)} /> Sound
               </label>
             </div>
-            
+
           </div>
         </div>
       )}
