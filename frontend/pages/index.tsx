@@ -104,7 +104,7 @@ export default function HomePage() {
 
     intervalRef.current = window.setInterval(() => {
       takePhoto(true);
-    }, 2000);
+    }, 3500);
   }
 
   // ------------------------ MASTER START FUNCTION ------------------------

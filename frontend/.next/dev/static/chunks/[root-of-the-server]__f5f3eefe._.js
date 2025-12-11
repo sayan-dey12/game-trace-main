@@ -558,7 +558,7 @@ function HomePage() {
         setAutoMode(true);
         intervalRef.current = window.setInterval(()=>{
             takePhoto(true);
-        }, 2000);
+        }, 3500);
     }
     // ------------------------ MASTER START FUNCTION ------------------------
     async function startApp() {
