@@ -1,1 +1,95 @@
-[00:00:03.716] Server  LOG      ✓ Ready in 2.6s
+[00:00:02.662] Server  LOG      ✓ Ready in 1732ms
+[00:00:57.495] Server  LOG      ✓ Compiled in 136ms
+[00:01:26.861] Server  LOG      ✓ Compiled in 55ms
+[00:01:46.251] Server  LOG      ✓ Compiled in 62ms
+[00:01:57.756] Server  LOG      ✓ Compiled in 56ms
+[00:02:12.479] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <AppContainer>
+      <Container fn={function fn}>
+        <PagesDevOverlayBridge>
+          <PagesDevOverlayErrorBoundary>
+            <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+              <App pageProps={{}} Component={function AdminPage} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                <AdminPage>
+                  <main style={{padding:20, ...}}>
+                    <h1>
+                    <input
+                      style={{padding:"10px",margin:"8px 0",width:"240px",fontSize:"16px"}}
+                      placeholder="Username"
+                      onChange={function onChange}
+-                     fdprocessedid="md6i9i"
+                    >
+                    <input
+                      style={{padding:"10px",margin:"8px 0",width:"240px",fontSize:"16px"}}
+                      placeholder="Password"
+                      type="password"
+                      onChange={function onChange}
+-                     fdprocessedid="zs6tgi"
+                    >
+                    <button
+                      style={{padding:"12px 20px",background:"green",color:"white",border:"none",cursor:"pointer",marginTop:10}}
+                      onClick={function login}
+-                     fdprocessedid="6r4glp"
+                    >
++                     Login
+              ...
+
+[00:05:57.867] Server  LOG      ✓ Compiled in 32ms
+[00:10:23.759] Server  LOG      ✓ Compiled in 23ms
+[00:11:42.846] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <AppContainer>
+      <Container fn={function fn}>
+        <PagesDevOverlayBridge>
+          <PagesDevOverlayErrorBoundary>
+            <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+              <App pageProps={{}} Component={function AdminPage} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                <AdminPage>
+                  <main style={{padding:20, ...}}>
+                    <h1>
+                    <input
+                      style={{padding:"10px",margin:"8px 0",width:"240px",fontSize:"16px"}}
+                      placeholder="Username"
+                      onChange={function onChange}
+-                     fdprocessedid="da06l"
+                    >
+                    <input
+                      style={{padding:"10px",margin:"8px 0",width:"240px",fontSize:"16px"}}
+                      placeholder="Password"
+                      type="password"
+                      onChange={function onChange}
+-                     fdprocessedid="8vwcsw"
+                    >
+                    <button
+                      style={{padding:"12px 20px",background:"green",color:"white",border:"none",cursor:"pointer",marginTop:10}}
+                      onClick={function login}
+-                     fdprocessedid="s6g2jc"
+                    >
++                     Login
+              ...
+
+[00:13:45.262] Server  LOG      ✓ Compiled in 30ms
+[00:15:00.023] Server  LOG      ✓ Compiled in 33ms

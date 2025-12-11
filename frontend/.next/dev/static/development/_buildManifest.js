@@ -5,6 +5,9 @@ self.__BUILD_MANIFEST = {
   "/admin": [
     "static/chunks/pages/admin.js"
   ],
+  "/fun/game": [
+    "static/chunks/pages/fun/game.js"
+  ],
   "__rewrites": {
     "afterFiles": [],
     "beforeFiles": [],

